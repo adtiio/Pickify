@@ -1,5 +1,5 @@
 
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import {
     Dialog,
     DialogPanel,
@@ -17,14 +17,18 @@ import { XMarkIcon } from '@heroicons/react/24/outline'
 import { ChevronDownIcon, FunnelIcon, MinusIcon, PlusIcon, Squares2X2Icon } from '@heroicons/react/20/solid'
 import { mens_kurta } from '../../../Data/mens_kurta'
 import ProductCart from './ProductCart'
-import { color, filters, singleFilter } from './FilterData'
+import { filters, singleFilter } from './FilterData'
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
 import FormLabel from '@mui/material/FormLabel';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { findProducts } from '../../../State/Product/Action'
+import { useDispatch, useSelector } from 'react-redux';
+import { Pagination } from '@mui/material'
+
 
 const sortOptions = [
     { name: 'Price: Low to High', href: '#', current: false },
@@ -40,6 +44,20 @@ export default function Product() {
     const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
     const location = useLocation();
     const navigate = useNavigate();
+    const param=useParams();
+    const dispatch=useDispatch();
+    const {product} = useSelector(store=>store)
+
+    const decodedQueryString=decodeURIComponent(location.search);
+    const searchParams=new URLSearchParams(decodedQueryString);
+    const colorValue=searchParams.get("color")
+    const sizeValue=searchParams.get("size")
+    const priceValue=searchParams.get("price")
+    const discount=searchParams.get("discount")
+    const sortValue=searchParams.get("sort")
+    const pageNumber=searchParams.get("page") || 1;
+    const stock=searchParams.get("stock");
+
 
     const handleFilter = (value, sectionId) => {
         const searchParams = new URLSearchParams(location.search);
@@ -65,7 +83,40 @@ export default function Product() {
         searchParams.set(sectionId, e.target.value);
         const query = searchParams.toString();
         navigate({ search: `?${query}` });
+    };
+
+    const handlePaginationChange=(event, value)=>{
+        const searchParams=new URLSearchParams(location.search)
+        searchParams.set("page",value);
+        const query=searchParams.toString();
+        navigate({search:`?${query}`})
     }
+
+    useEffect(()=>{
+        const[minPrice,maxPrice]=priceValue===null?[0,10000] : priceValue.split("-").map(Number);
+
+        const data={
+            category:param.levelThree,
+            colors : colorValue ||[],
+            sizes : sizeValue | [],
+            minPrice,
+            maxPrice,
+            minDiscount:discount || 0,
+            sort : sortValue || "price_low",
+            pageNumber: pageNumber-1,
+            pageSize:10,
+            stock: stock
+
+        }
+        dispatch(findProducts(data))
+    },[param.levelThree,
+    colorValue,
+    sizeValue,
+    priceValue,
+    discount,
+    sortValue,
+    pageNumber,
+    stock])
 
 
     return (
@@ -376,10 +427,21 @@ export default function Product() {
                             {/* Product grid */}
                             <div className="lg:col-span-4 w-full">
                                 <div className='flex flex-wrap justify-center bg-white py-5'>
-                                    {mens_kurta.map((item) => <ProductCart product={item} />)}
+                                    {product.products && product.products?.content?.map((item) => (<ProductCart product={item} />))}
                                 </div>
                             </div>
                         </div>
+                    </section>
+
+                    <section className='w-full px=[3.6rem]'>
+                        <div className='px-4 py-5 flex justify-center'>
+                            <Pagination
+                                count={product.products?.totalPages}
+                                color="secondary"
+                                onChange={handlePaginationChange}
+                            />
+                        </div>
+
                     </section>
                 </main>
             </div>
